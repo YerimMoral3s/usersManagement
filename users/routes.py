@@ -52,7 +52,7 @@ def create_user_email_ps(business_id):
             tokens = create_tokens(new_user.id)
 
             # save tokens
-            save_tokens(new_user.id, business_id, tokens['access_token'], tokens['refresh_token'])
+            save_user_tokens(new_user.id, business_id, tokens['access_token'], tokens['refresh_token'])
 
             response_data = {
                 'user': new_user.to_dict(),
@@ -82,7 +82,7 @@ def create_user_email_ps(business_id):
                 tokens = create_tokens(user_exists.id)
 
                 # save tokens
-                save_tokens(user_exists.id, business_id, tokens['access_token'], tokens['refresh_token'])
+                save_user_tokens(user_exists.id, business_id, tokens['access_token'], tokens['refresh_token'])
 
                 response_data = {
                     'user': user_exists.to_dict(),
@@ -127,7 +127,7 @@ def log_user(business_id):
             tokens = create_tokens(user_exists.id)
 
             # save tokens
-            save_tokens(user_exists.id, business_id, tokens['access_token'], tokens['refresh_token'])
+            save_user_tokens(user_exists.id, business_id, tokens['access_token'], tokens['refresh_token'])
 
             response_data = {
                 'user': user_exists.to_dict(),
@@ -228,3 +228,48 @@ def create_user_email(business_id):
     except:
         return jsonify(message='Problem with the user or password'), 400
         
+# Validate refresh token
+@users_bp.route('/refresh_token/<int:business_id>', methods=['POST'])
+def refresh(business_id):
+    try:
+        data = request.get_json()
+        refresh_token = data['refresh_token']
+        user_id = data['user_id']
+
+        # find session on tokens 
+        session = Tokens.query.filter_by(user_id=user_id, business_id=business_id, refresh_token=refresh_token).first()
+
+        # if session not exists return error
+
+        if session is None:
+            return jsonify(message='Problem with the session, not exist'), 400
+        
+        else:
+            # if session exists validate refresh token is not expired
+            decoded_token = decode_rt(refresh_token)
+
+            # check if token is expired
+            if decoded_token['exp'] < datetime.now().timestamp():
+                return jsonify(message='Session expired'), 400
+
+            # if token is not expired create new tokens and return them
+            else:
+                tokens = create_tokens(user_id)
+
+                # save tokens
+                update_user_tokens(user_id, business_id, tokens['access_token'], tokens['refresh_token'])
+
+                response_data = {
+                    "access_token": tokens['access_token'],
+                    "refresh_token": tokens['refresh_token']
+                }
+
+                return jsonify(response_data), 201
+    except:
+        return jsonify(message='Problem with the session'), 400
+
+
+
+
+
+

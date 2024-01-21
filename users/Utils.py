@@ -4,6 +4,7 @@ from models.Business import Business
 from models.Tokens import Tokens
 from flask_jwt_extended import create_access_token, create_refresh_token
 from datetime import timedelta
+from flask_jwt_extended import decode_token
 
 
 from app import db, bcrypt
@@ -32,17 +33,9 @@ def save_user(user):
     db.session.commit()
     return user
 
-def find_user_by_id(id):    
-    user = Users.query.filter_by(id=id).first()
-    return user
-
 def find_user_by_email(email):
     user = Users.query.filter_by(email=email).first()
     return user
-
-def find_business_by_id(business_id):
-    business = Business.query.filter_by(id=business_id).first()
-    return business
 
 def hash_password(password):
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
@@ -71,13 +64,21 @@ def create_tokens(user_id):
         'refresh_token': refresh_token
     }
 
-def save_tokens(user_id, business_id, access_token, refresh_token):
+def save_user_tokens(user_id, business_id, access_token, refresh_token):
     #create token
     new_tokens = Tokens(user_id=user_id, business_id=business_id, access_token=access_token, refresh_token=refresh_token)
     # save token
     db.session.add(new_tokens)
     db.session.commit()
     return new_tokens
+
+def update_user_tokens(user_id,business_id,access_token, refresh_token):
+    tokens = Tokens.query.filter_by(user_id=user_id, business_id=business_id).first()
+    tokens.access_token = access_token
+    tokens.refresh_token = refresh_token
+    db.session.commit()
+    return tokens
+
 
 def generate_random_password():
     import random
@@ -100,3 +101,7 @@ def validate_email(email):
     else:
         return False
     
+
+def decode_rt(token):
+    decoded_token = decode_token(token)
+    return decoded_token
